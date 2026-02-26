@@ -1,0 +1,80 @@
+CREATE DATABASE webcroche;
+USE webcroche;
+
+CREATE TABLE login ( 
+	id INT PRIMARY KEY AUTO_INCREMENT, 
+	nome VARCHAR(200) NOT NULL, 
+	email VARCHAR(100) NOT NULL UNIQUE, 
+	senha VARCHAR(255) NOT NULL 
+);
+
+CREATE TABLE produto ( 
+	id INT PRIMARY KEY AUTO_INCREMENT, 
+	nome VARCHAR(80) NOT NULL, 
+	quantidade INT DEFAULT 0, 
+	descricao VARCHAR(200), 
+	img VARCHAR(200), 
+	preco DECIMAL(10,2) NOT NULL 
+); 
+
+CREATE TABLE pedido (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  nome_cliente VARCHAR(200) NOT NULL,
+  email VARCHAR(100) NOT NULL,
+  telefone CHAR(13),
+  cpf CHAR(11),
+  observacao VARCHAR(200),
+  data_pedido DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE pedido_final (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  idPedido INT NOT NULL,
+  idProduto INT NOT NULL,
+  quantidade INT NOT NULL,
+  preco_unitario DECIMAL(10,2) NOT NULL,
+  FOREIGN KEY (idPedido) REFERENCES pedido(id),
+  FOREIGN KEY (idProduto) REFERENCES produto(id)
+);
+
+CREATE TABLE rendimento (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    quantidade INT NOT NULL,
+    idPedido INT NOT NULL,
+    FOREIGN KEY (idPedido) REFERENCES pedido(id)
+);
+
+CREATE VIEW rendimento_total AS SELECT
+  SUM(p.quantidade * pr.preco) AS total_rendimento
+FROM pedido p
+JOIN produto pr ON p.idProduto = pr.id;
+
+CREATE VIEW rendimento_anual AS SELECT
+  YEAR(p.data_pedido) AS ano, SUM(p.quantidade * pr.preco) AS rendimento_ano
+FROM pedido p
+JOIN produto pr ON p.idProduto = pr.id
+GROUP BY YEAR(p.data_pedido)
+ORDER BY YEAR(p.data_pedido);
+
+CREATE VIEW rendimento_mensal AS
+SELECT
+  YEAR(p.data_pedido) AS ano,
+  MONTH(p.data_pedido) AS mes,
+  SUM(p.quantidade * pr.preco) AS rendimento_mes
+FROM pedido p
+JOIN produto pr ON p.idProduto = pr.id
+GROUP BY YEAR(p.data_pedido), MONTH(p.data_pedido)
+ORDER BY YEAR(p.data_pedido), MONTH(p.data_pedido);
+
+DELIMITER $$
+CREATE TRIGGER trg_after_insert_pedido
+AFTER INSERT ON pedido_final
+FOR EACH ROW
+BEGIN
+    UPDATE produto
+    SET quantidade = quantidade - NEW.quantidade
+    WHERE id = NEW.idProduto;
+END$$
+
+DELIMITER ;
+
